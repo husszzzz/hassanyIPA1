@@ -1,0 +1,25 @@
+name: HassanyIPA
+options:
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+targets:
+  HassanyIPA:
+    type: application
+    platform: iOS
+    sources:
+      - path: HassanyIPA
+    info:
+      path: HassanyIPA/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hassany.ipa
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+schemes:
+  HassanyIPA:
+    build:
+      targets:
+        HassanyIPA: all

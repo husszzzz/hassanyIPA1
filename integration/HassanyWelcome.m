@@ -11,16 +11,30 @@
 }
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.view.backgroundColor = [UIColor colorWithRed:.08 green:.04 blue:.15 alpha:1];
+    self.view.backgroundColor = [UIColor colorWithRed:.025 green:.020 blue:.080 alpha:1];
+    CAGradientLayer *background = [CAGradientLayer layer];
+    background.colors = @[(id)[UIColor colorWithRed:.04 green:.03 blue:.11 alpha:1].CGColor,
+                           (id)[UIColor colorWithRed:.17 green:.08 blue:.31 alpha:1].CGColor,
+                           (id)[UIColor colorWithRed:.04 green:.06 blue:.15 alpha:1].CGColor];
+    background.startPoint = CGPointMake(0, 0);
+    background.endPoint = CGPointMake(1, 1);
+    background.frame = UIScreen.mainScreen.bounds;
+    [self.view.layer insertSublayer:background atIndex:0];
     UIStackView *stack = [[UIStackView alloc] init];
     stack.axis = UILayoutConstraintAxisVertical;
-    stack.spacing = 18;
+    stack.spacing = 13;
     stack.alignment = UIStackViewAlignmentFill;
     stack.translatesAutoresizingMaskIntoConstraints = NO;
     UIScrollView *scroll = [UIScrollView new];
     scroll.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:scroll];
     [scroll addSubview:stack];
+    stack.layoutMarginsRelativeArrangement = YES;
+    stack.layoutMargins = UIEdgeInsetsMake(20, 20, 20, 20);
+    stack.backgroundColor = [UIColor colorWithRed:.09 green:.07 blue:.18 alpha:.96];
+    stack.layer.cornerRadius = 24;
+    stack.layer.borderWidth = 1;
+    stack.layer.borderColor = [UIColor colorWithRed:.55 green:.37 blue:.94 alpha:.6].CGColor;
     [NSLayoutConstraint activateConstraints:@[
         [scroll.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
         [scroll.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor],
@@ -39,14 +53,20 @@
         [brandView.heightAnchor constraintEqualToConstant:135].active = YES;
         [stack addArrangedSubview:brandView];
     }
+    UILabel *eyebrow = [UILabel new];
+    eyebrow.text = @"✦  PREMIUM WELCOME  ✦";
+    eyebrow.textColor = [UIColor colorWithRed:.73 green:.64 blue:1 alpha:1];
+    eyebrow.textAlignment = NSTextAlignmentCenter;
+    eyebrow.font = [UIFont boldSystemFontOfSize:10];
+    [stack addArrangedSubview:eyebrow];
     UILabel *title = [UILabel new];
     title.text = @"HASSANY IPA";
     title.textColor = UIColor.whiteColor;
     title.textAlignment = NSTextAlignmentCenter;
-    title.font = [UIFont boldSystemFontOfSize:32];
+    title.font = [UIFont systemFontOfSize:32 weight:UIFontWeightHeavy];
     [stack addArrangedSubview:title];
     UILabel *subtitle = [UILabel new];
-    subtitle.text = @"أهلاً وسهلاً بك في HASSANY IPA";
+    subtitle.text = @"أهلاً بيك بعالم HASSANY IPA المميز";
     subtitle.textColor = UIColor.lightGrayColor;
     subtitle.textAlignment = NSTextAlignmentCenter;
     [stack addArrangedSubview:subtitle];
@@ -60,13 +80,22 @@
     [channel addTarget:self action:@selector(openChannel) forControlEvents:UIControlEventTouchUpInside];
     [stack addArrangedSubview:channel];
     _codeField = [UITextField new];
-    _codeField.placeholder = @"أدخل كود التفعيل";
+    _codeField.placeholder = @"XXXX-XXXX-XXXX";
+    _codeField.backgroundColor = [UIColor colorWithWhite:1 alpha:.09];
+    _codeField.layer.cornerRadius = 12;
+    _codeField.textColor = UIColor.whiteColor;
+    _codeField.font = [UIFont monospacedSystemFontOfSize:15 weight:UIFontWeightSemibold];
+    [_codeField.heightAnchor constraintEqualToConstant:44].active = YES;
     _codeField.borderStyle = UITextBorderStyleRoundedRect;
     _codeField.textAlignment = NSTextAlignmentCenter;
     [stack addArrangedSubview:_codeField];
     UIButton *activate = [UIButton buttonWithType:UIButtonTypeSystem];
     [activate setTitle:@"تفعيل" forState:UIControlStateNormal];
     [activate addTarget:self action:@selector(activateCode) forControlEvents:UIControlEventTouchUpInside];
+    activate.backgroundColor = [UIColor colorWithRed:.46 green:.27 blue:.93 alpha:1];
+    activate.layer.cornerRadius = 12;
+    [activate setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+    [activate.heightAnchor constraintEqualToConstant:44].active = YES;
     [stack addArrangedSubview:activate];
     _statusLabel = [UILabel new];
     _statusLabel.text = @"السيرفر غير مربوط بعد";
@@ -76,6 +105,10 @@
     UIButton *continueButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [continueButton setTitle:@"متابعة إلى اللعبة" forState:UIControlStateNormal];
     [continueButton addTarget:self action:@selector(continueToGame) forControlEvents:UIControlEventTouchUpInside];
+    continueButton.backgroundColor = [UIColor colorWithWhite:1 alpha:.10];
+    continueButton.layer.cornerRadius = 12;
+    [continueButton setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+    [continueButton.heightAnchor constraintEqualToConstant:44].active = YES;
     [stack addArrangedSubview:continueButton];
 }
 - (void)openChannel {

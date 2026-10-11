@@ -35,3 +35,13 @@ Evidence is consistent with NEXTDEV being a derivative of XO where a welcome/act
 - A drop-in native overlay requires an explicit app integration/entry point and iOS test.
 - Neither a deployed license backend nor a verified game-integrated IPA has been built.
 - Do not commit proprietary IPA binaries, signing data, credentials or production license secrets into this public repository.
+
+## Additional Mach-O verification
+
+A direct inspection of Mach-O load commands confirms that the NEXTDEV `navyx0` binary declares a load dependency on:
+
+`@executable_path/Frameworks/NextdevGate.framework/NextdevGate`
+
+The XO `navyx0` binary does not declare that dependency. Both contain Objective-C references to `RWWelcomeController` and `WelcomeManager`.
+
+**Implication:** deleting `NextdevGate.framework` from the NEXTDEV package without rewriting its dependent Mach-O load command would risk a dynamic-loader failure. XO provides a cleaner starting point, but this does not prove a new welcome overlay will automatically launch. A dedicated integration entry point still must be implemented and tested.

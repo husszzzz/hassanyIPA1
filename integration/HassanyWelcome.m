@@ -58,11 +58,16 @@
     _statusLabel.textColor = UIColor.lightGrayColor;
     _statusLabel.textAlignment = NSTextAlignmentCenter;
     [stack addArrangedSubview:_statusLabel];
+    UIButton *continueButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [continueButton setTitle:@"متابعة إلى اللعبة" forState:UIControlStateNormal];
+    [continueButton addTarget:self action:@selector(continueToGame) forControlEvents:UIControlEventTouchUpInside];
+    [stack addArrangedSubview:continueButton];
 }
 - (void)openChannel {
     NSURL *url = [NSURL URLWithString:@"https://t.me/hassanyIPA"];
     [UIApplication.sharedApplication openURL:url options:@{} completionHandler:nil];
 }
+- (void)continueToGame { [self dismissViewControllerAnimated:YES completion:nil]; }
 - (void)activateCode {
     _statusLabel.text = @"التفعيل غير مفعّل قبل ربط السيرفر";
 }
@@ -75,4 +80,38 @@ void HassanyPresentWelcome(UIViewController *presenter) {
     HassanyWelcomeController *welcome = [HassanyWelcomeController new];
     welcome.modalPresentationStyle = UIModalPresentationFullScreen;
     [presenter presentViewController:welcome animated:YES completion:nil];
+}
+
+// Experimental startup integration. Runs once when UIKit is active.
+static BOOL hassanyDidPresent = NO;
+static void HassanyTryPresent(void) {
+    if (hassanyDidPresent) return;
+    UIApplication *app = UIApplication.sharedApplication;
+    UIWindow *window = nil;
+    for (UIScene *scene in app.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class] ||
+            scene.activationState != UISceneActivationStateForegroundActive) continue;
+        for (UIWindow *candidate in ((UIWindowScene *)scene).windows) {
+            if (candidate.isKeyWindow) { window = candidate; break; }
+        }
+        if (window) break;
+    }
+    if (!window) window = app.keyWindow;
+    UIViewController *controller = window.rootViewController;
+    if (!controller || controller.presentedViewController) return;
+    hassanyDidPresent = YES;
+    HassanyPresentWelcome(controller);
+}
+static void HassanyScheduleWelcome(__unused NSNotification *notice) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{ HassanyTryPresent(); });
+}
+__attribute__((constructor)) static void HassanyBootstrap(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationDidBecomeActiveNotification
+                                                        object:nil
+                                                         queue:NSOperationQueue.mainQueue
+                                                    usingBlock:^(NSNotification *note) { HassanyScheduleWelcome(note); }];
+        HassanyScheduleWelcome(nil);
+    });
 }

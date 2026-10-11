@@ -404,7 +404,7 @@ private final class HassanyNativeWelcome: UIViewController, UITextFieldDelegate 
                     && self.serverReady && !self.maintenance && !self.forceUpdate {
                     self.verified=true
                     self.status.text="✓ تم التفعيل • يمكنك دخول اللعبة"
-                    self.status.textColor=.systemGreen
+                    self.status.textColor = .systemGreen
                 } else {
                     self.verified=false
                     if result["error"] as? String == "maintenance" {

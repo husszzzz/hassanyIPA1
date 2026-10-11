@@ -27,6 +27,9 @@ private final class HassanyWelcomeController: UIViewController, UITextFieldDeleg
     private let spinner = UIActivityIndicatorView(style: .medium)
     private let activate = UIButton(type: .system)
     private let stack = UIStackView()
+    private let enter = UIButton(type: .system)
+    private var verified = false
+    private var arabic = true
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .all }
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
@@ -90,7 +93,7 @@ private final class HassanyWelcomeController: UIViewController, UITextFieldDeleg
         addLabel("✦   H A S S A N Y   P R E M I U M   ✦", size: 10, weight: .bold, color: Theme.violet)
         addLabel("HASSANY IPA", size: 32, weight: .heavy, color: .white)
         addLabel("أهلاً وسهلاً بك بعالم البلياردو", size: 15, weight: .medium, color: Theme.muted)
-        addLabel("المطور  @OM_G9    •    القناة  @hassanyIPA", size: 12, weight: .medium, color: Theme.muted)
+        addLabel("حسين الحسني • @om_g9 • @hassanyIPA", size: 12, weight: .medium, color: Theme.muted)
         let rule = UIView()
         rule.backgroundColor = .white.withAlphaComponent(0.12)
         rule.heightAnchor.constraint(equalToConstant: 1).isActive = true
@@ -130,11 +133,21 @@ private final class HassanyWelcomeController: UIViewController, UITextFieldDeleg
         telegram.addTarget(self, action: #selector(openChannel), for: .touchUpInside)
         stack.addArrangedSubview(telegram)
 
-        let enter = UIButton(type: .system)
-        enter.setTitle("متابعة إلى اللعبة   ←", for: .normal)
+        enter.setTitle("دخول اللعبة ←", for: .normal)
         style(enter, primary: false)
         enter.addTarget(self, action: #selector(continueGame), for: .touchUpInside)
+        enter.isHidden = true
         stack.addArrangedSubview(enter)
+        let developer = UIButton(type: .system)
+        developer.setTitle("المطور • حسين الحسني", for: .normal)
+        style(developer, primary: false)
+        developer.addTarget(self, action: #selector(openDeveloper), for: .touchUpInside)
+        stack.addArrangedSubview(developer)
+        let language = UIButton(type: .system)
+        language.setTitle("English / عربي", for: .normal)
+        style(language, primary: false)
+        language.addTarget(self, action: #selector(changeLanguage), for: .touchUpInside)
+        stack.addArrangedSubview(language)
 
         addLabel("HASSANY IPA  •  © 2026  •  @OM_G9", size: 10, weight: .medium, color: Theme.muted)
     }
@@ -163,7 +176,14 @@ private final class HassanyWelcomeController: UIViewController, UITextFieldDeleg
         button.heightAnchor.constraint(equalToConstant: 45).isActive = true
     }
 
-    @objc private func continueGame() { dismiss(animated: true) }
+    @objc private func continueGame() { if verified { dismiss(animated: true) } }
+    @objc private func openDeveloper() { if let url = URL(string: "https://t.me/om_g9") { UIApplication.shared.open(url) } }
+    @objc private func changeLanguage() {
+        arabic.toggle()
+        activate.setTitle(arabic ? "تفعيل الكود ✦" : "Verify code ✦", for: .normal)
+        enter.setTitle(arabic ? "دخول اللعبة ←" : "Enter game →", for: .normal)
+        status.text = arabic ? "أدخل كود التفعيل" : "Enter activation code"
+    }
 
     @objc private func openChannel() {
         guard let url = URL(string: "https://t.me/hassanyIPA") else { return }
@@ -178,13 +198,15 @@ private final class HassanyWelcomeController: UIViewController, UITextFieldDeleg
 
     @objc private func verify() {
         field.resignFirstResponder()
+        verified = false
+        enter.isHidden = true
         let code = (field.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard code.count >= 10 else {
             status.text = "أدخل كود صحيح أولاً"
             return
         }
-        guard let base = Bundle.main.object(forInfoDictionaryKey: "HassanyAPIBaseURL") as? String,
-              base.hasPrefix("https://"), let url = URL(string: base + "/api/activate") else {
+        let base = (Bundle.main.object(forInfoDictionaryKey: "HassanyAPIBaseURL") as? String) ?? "https://backend-black-delta-89.vercel.app"
+        guard base.hasPrefix("https://"), let url = URL(string: base + "/api/activate") else {
             status.text = "التفعيل يحتاج نشر وربط السيرفر أولاً"
             return
         }
@@ -210,9 +232,13 @@ private final class HassanyWelcomeController: UIViewController, UITextFieldDeleg
                 guard let self = self else { return }
                 self.activate.isEnabled = true
                 if result["ok"] as? Bool == true {
-                    self.status.text = "تم التحقق من الكود بنجاح ✓"
+                    self.verified = true
+                    self.enter.isHidden = false
+                    self.status.text = "تم التحقق ✓ اضغط دخول اللعبة"
                     self.status.textColor = .systemGreen
                 } else {
+                    self.verified = false
+                    self.enter.isHidden = true
                     self.status.text = error == nil ? "الكود غير صالح أو انتهت صلاحيته" : "تعذّر الاتصال بالسيرفر"
                 }
             }

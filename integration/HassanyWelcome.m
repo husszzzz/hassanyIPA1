@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
+#import <objc/runtime.h>
 
 // Hassany native welcome overlay: standalone component for authorized integration.
 // It does not patch or inject into any third-party executable by itself.
@@ -131,9 +132,27 @@ void HassanyPresentWelcome(UIViewController *presenter) {
 }
 
 // Experimental startup integration. Runs once when UIKit is active.
+// Prevent legacy welcome panels in the authorized XO-derived build.
+// No game logic or activation checks are changed.
+static void HassanyNoLegacyWelcome(id object, SEL selector) {
+    (void)object;
+    (void)selector;
+}
+static void HassanyMuteOldWelcome(void) {
+    Class cls = objc_getClass("WelcomeManager");
+    if (!cls) return;
+    const char *names[] = {"presentWelcomeIfNeeded", "tryPresent", "presentWelcome"};
+    for (unsigned i = 0; i < sizeof(names)/sizeof(names[0]); ++i) {
+        Method m = class_getInstanceMethod(cls, sel_registerName(names[i]));
+        if (m && method_getNumberOfArguments(m) == 2) {
+            method_setImplementation(m, (IMP)HassanyNoLegacyWelcome);
+        }
+    }
+}
 static BOOL hassanyDidPresent = NO;
 static void HassanyTryPresent(void) {
     if (hassanyDidPresent) return;
+    HassanyMuteOldWelcome();
     UIApplication *app = UIApplication.sharedApplication;
     UIWindow *window = nil;
     for (UIScene *scene in app.connectedScenes) {
@@ -155,6 +174,7 @@ static void HassanyScheduleWelcome(__unused NSNotification *notice) {
                    dispatch_get_main_queue(), ^{ HassanyTryPresent(); });
 }
 __attribute__((constructor)) static void HassanyBootstrap(void) {
+    HassanyMuteOldWelcome();
     dispatch_async(dispatch_get_main_queue(), ^{
         [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationDidBecomeActiveNotification
                                                         object:nil

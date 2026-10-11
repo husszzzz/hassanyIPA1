@@ -25,7 +25,7 @@ class FakeDatabase:
         if "SELECT l.id" in sql:
             return Result([{"id":1,"code_hint":"TEST42","duration_days":30,
                             "max_devices":1,"disabled":False,"created_at":None,"used":0}])
-        if "SELECT * FROM app_settings" in sql:
+        if "FROM app_settings" in sql:
             return Result({"maintenance":False,"maintenance_message":"تحت الصيانة",
                            "latest_version":"4.0","update_url":"",
                            "force_update":False,"id":1})

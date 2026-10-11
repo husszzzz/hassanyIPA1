@@ -41,7 +41,9 @@ def csrf():
     return session["_csrf"]
 
 def check_csrf():
-    if not hmac.compare_digest(str(session.get("_csrf", "")), str(request.form.get("csrf", ""))):
+    expected = session.get("_csrf")
+    supplied = request.form.get("csrf")
+    if not expected or not supplied or not hmac.compare_digest(expected, supplied):
         abort(403)
 
 def admin_only(fn):

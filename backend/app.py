@@ -1,7 +1,7 @@
 import os, secrets, hashlib, hmac, time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Flask, request, redirect, render_template_string, session, jsonify, abort
+from flask import Flask, request, redirect, render_template_string, render_template, session, jsonify, abort
 import psycopg
 from psycopg.rows import dict_row
 
@@ -100,11 +100,7 @@ def login():
             return redirect("/admin")
         time.sleep(1)
         error="كلمة المرور غير صحيحة"
-    return page("""<header><h1>✦ HASSANY IPA</h1></header>
-    <section class="box"><h2>لوحة الإدارة</h2><p>الدخول للمطور فقط</p>
-    <form method="POST"><input type="hidden" name="csrf" value="{{token}}">
-    <label>كلمة مرور الإدارة<input type="password" name="password" required autocomplete="current-password"></label>
-    <button>دخول</button></form><p>{{error}}</p></section>""",token=csrf(),error=error)
+    return render_template("login.html", token=csrf(), error=error)
 
 @app.post("/logout")
 @admin_only
@@ -124,43 +120,14 @@ def admin():
         settings=con.execute("SELECT * FROM app_settings WHERE id=1").fetchone()
     needle=(request.args.get("q") or "").strip().upper()
     if needle: licenses=[x for x in licenses if needle in x["code_hint"].upper()]
+    with db() as con:
+        metrics=con.execute("""SELECT
+            (SELECT count(*) FROM licenses) AS total,
+            (SELECT count(*) FROM licenses WHERE disabled=false) AS active,
+            (SELECT count(*) FROM licenses WHERE disabled=true) AS disabled,
+            (SELECT count(*) FROM activations) AS devices""").fetchone()
     code=session.pop("new_code",None)
-    return page("""<header><h1>✦ HASSANY IPA</h1><form action="/logout" method="post">
-    <input type="hidden" name="csrf" value="{{token}}"><button class="danger logout">خروج</button></form></header>
-    <p>لوحة إدارة أكواد التفعيل • المطور @OM_G9 • @hassanyIPA</p>
-    {% if code %}<section class="box"><h2>الكود الجديد — انسخه الآن</h2><p>لن يُعرض مرة ثانية</p>
-    <div class="code">{{code}}</div></section>{% endif %}
-    <section class="box"><h2>توليد كود</h2><form method="post" action="/create">
-    <input type="hidden" name="csrf" value="{{token}}">
-    <label>الصلاحية بالأيام <input name="days" type="number" min="1" max="3650" value="30" required></label>
-    <label>عدد الأجهزة <input name="devices" type="number" min="1" max="100" value="1" required></label>
-    <button>إنشاء كود جديد</button></form></section>
-    <section class="box"><h2>التحكم بالنظام</h2><form method="post" action="/settings">
-    <input type="hidden" name="csrf" value="{{token}}">
-    <label><input type="checkbox" name="maintenance" value="yes" style="width:auto" {% if settings.maintenance %}checked{% endif %}> وضع الصيانة</label>
-    <label>رسالة الصيانة <input name="maintenance_message" maxlength="250" value="{{settings.maintenance_message}}"></label>
-    <label>رقم آخر إصدار <input name="latest_version" maxlength="32" value="{{settings.latest_version}}"></label>
-    <label>رابط التحديث HTTPS <input name="update_url" maxlength="350" value="{{settings.update_url}}"></label>
-    <label><input type="checkbox" name="force_update" value="yes" style="width:auto" {% if settings.force_update %}checked{% endif %}> طلب التحديث الإجباري</label>
-    <button>حفظ إعدادات النظام</button></form></section>
-    <section class="box"><h2>البحث عن الأكواد</h2><p>يمكن البحث فقط بآخر ستة رموز، لأن الأكواد كاملة لا تُخزّن كنص واضح.</p>
-    <form method="get" action="/admin"><input name="q" maxlength="6" placeholder="آخر 6 رموز" value="{{search}}"><button>بحث</button></form></section>
-    <section class="box"><h2>الأكواد</h2><div class="scroll"><table>
-    <tr><th>آخر الرموز</th><th>الأيام</th><th>الأجهزة</th><th>الحالة</th><th>إجراء</th></tr>
-    {% for item in licenses %}
-    <tr><td dir="ltr">{{item.code_hint}}</td><td>{{item.duration_days}}</td>
-    <td>{{item.used}} / {{item.max_devices}}</td>
-    <td>{{'ملغى' if item.disabled else 'فعّال'}}</td><td>
-    <form method="post" action="/toggle/{{item.id}}">
-    <input type="hidden" name="csrf" value="{{token}}"><button>{{'إعادة تفعيل' if item.disabled else 'تعطيل'}}</button></form>
-    <form method="post" action="/delete/{{item.id}}" onsubmit="return confirm('حذف الكود نهائياً؟')">
-    <input type="hidden" name="csrf" value="{{token}}"><button class="danger">حذف</button></form>
-    <form method="post" action="/edit/{{item.id}}">
-    <input type="hidden" name="csrf" value="{{token}}">
-    <input style="max-width:70px" name="days" type="number" min="1" max="3650" value="{{item.duration_days}}">
-    <input style="max-width:70px" name="devices" type="number" min="1" max="100" value="{{item.max_devices}}">
-    <button>تعديل</button></form>
-    </td></tr>{% endfor %}</table></div></section>""", token=csrf(),licenses=licenses,code=code,settings=settings,search=(request.args.get("q") or "")[:6])
+    return render_template("dashboard.html", token=csrf(), licenses=licenses, code=code, settings=settings, metrics=metrics, search=(request.args.get("q") or "")[:6])
 
 @app.post("/create")
 @admin_only

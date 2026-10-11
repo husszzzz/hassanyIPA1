@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><title>HASSANY IPA — لوحة التحكم</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}"></head>
+<body>
+<div class="shell">
+<header class="topbar">
+  <div class="brand"><div class="brand-mark">H</div><div><div class="brand-name">HASSANY IPA</div><div class="brand-detail">MANAGEMENT CONSOLE · حسين الحسني</div></div></div>
+  <div class="actions"><span class="pill"><span class="dot"></span> نظام الإدارة</span>
+  <form action="/logout" method="post"><input type="hidden" name="csrf" value="{{ token }}"><button class="btn small" type="submit">تسجيل خروج ↗</button></form></div>
+</header>
+<div class="layout">
+<aside class="side" aria-label="أقسام لوحة التحكم">
+<div class="side-label">القائمة الرئيسية</div>
+<a class="nav-link selected" href="#overview">◈ &nbsp; نظرة عامة</a>
+<a class="nav-link" href="#create">✧ &nbsp; إنشاء كود</a>
+<a class="nav-link" href="#licenses">⌕ &nbsp; إدارة الأكواد</a>
+<a class="nav-link" href="#settings">⚙ &nbsp; إعدادات النظام</a>
+<div class="side-foot">HASSANY IPA · @om_g9<br>لوحة تحكم خاصة بالإدارة</div>
+</aside>
+<main class="content">
+<div class="heading" id="overview"><div><span class="eyebrow">DASHBOARD · HASSANY IPA</span><h1>أهلاً بك في لوحة الإدارة</h1><p class="subtext">أنشئ التراخيص، راقب التفعيلات، وتحكّم بحالة النسخة من مكان واحد.</p></div><a class="btn" href="https://t.me/hassanyIPA" rel="noopener noreferrer" target="_blank">◈ القناة الرسمية ↗</a></div>
+<section class="stats" aria-label="الإحصائيات">
+<div class="stat"><div class="stat-kicker">إجمالي الأكواد</div><div class="stat-number">{{ metrics.total }}</div><div class="stat-note">الأكواد المُنشأة</div></div>
+<div class="stat"><div class="stat-kicker">الأكواد النشطة</div><div class="stat-number green">{{ metrics.active }}</div><div class="stat-note">غير المعطلة</div></div>
+<div class="stat"><div class="stat-kicker">الأكواد المعطلة</div><div class="stat-number pink">{{ metrics.disabled }}</div><div class="stat-note">يمكن إعادة تفعيلها</div></div>
+<div class="stat"><div class="stat-kicker">تفعيلات الأجهزة</div><div class="stat-number">{{ metrics.devices }}</div><div class="stat-note">الأجهزة المسجّلة</div></div>
+</section>
+{% if code %}
+<div class="box-alert" role="status"><strong>✧ تم إنشاء كود جديد بنجاح</strong><p style="margin:6px 0 12px;color:#ddd4ff">انسخه واحتفظ به. لا يظهر الكود الكامل مرة ثانية.</p>
+<div class="secret-code">{{code}}</div></div>
+{% endif %}
+<div class="duo">
+<section class="card" id="create">
+<span class="eyebrow">LICENSE GENERATOR</span><h2>✧ إصدار كود جديد</h2><p>حدد مدة الترخيص والعدد الأقصى للأجهزة المسموح لها باستخدامه.</p>
+<form method="post" action="/create"><input type="hidden" name="csrf" value="{{token}}">
+<div class="grid2">
+<div class="field"><label for="days">مدة الكود بالأيام</label><input id="days" name="days" type="number" value="30" min="1" max="3650" required></div>
+<div class="field"><label for="devices">عدد الأجهزة</label><input id="devices" name="devices" type="number" value="1" min="1" max="100" required></div></div>
+<button class="btn primary" type="submit">✦ توليد كود جديد</button>
+</form></section>
+<section class="card" id="settings">
+<span class="eyebrow">SYSTEM CONTROL</span><h2>⚙ الإعدادات والصيانة</h2><p>تحكم بحالة التفعيل والإصدار من السيرفر. تتطلب النسخ القديمة دعماً لهذه الإعدادات.</p>
+<form method="post" action="/settings"><input type="hidden" name="csrf" value="{{token}}">
+<label class="toggle"><input type="checkbox" name="maintenance" value="yes" {% if settings.maintenance %}checked{% endif %}> تفعيل وضع الصيانة</label>
+<div class="field"><label for="maintenance_message">رسالة الصيانة</label><input id="maintenance_message" name="maintenance_message" maxlength="250" value="{{settings.maintenance_message}}"></div>
+<div class="grid2"><div class="field"><label for="latest_version">رقم الإصدار</label><input id="latest_version" name="latest_version" maxlength="32" value="{{settings.latest_version}}" required></div>
+<div class="field"><label for="update_url">رابط التحديث HTTPS</label><input id="update_url" name="update_url" maxlength="350" value="{{settings.update_url}}" placeholder="https://..."></div></div>
+<label class="toggle"><input type="checkbox" name="force_update" value="yes" {% if settings.force_update %}checked{% endif %}> طلب تحديث إجباري</label>
+<button class="btn primary" type="submit">حفظ إعدادات النظام</button>
+</form></section></div>
+<section class="section" id="licenses">
+<div class="section-head"><div><span class="eyebrow">LICENSE MANAGER</span><h2>إدارة الأكواد</h2><p class="subtext">يمكن البحث بأجزاء من آخر 6 رموز فقط لأن الكود الكامل لا يُخزّن ظاهراً.</p></div>
+<form class="search" action="/admin" method="get"><input type="search" name="q" maxlength="6" value="{{search}}" placeholder="بحث بآخر 6 رموز" aria-label="البحث عن كود"><button class="btn" type="submit">⌕ بحث</button></form></div>
+<div class="table-scroll"><table class="table"><thead><tr><th>الكود (آخر 6 رموز)</th><th>المدة</th><th>الأجهزة</th><th>الحالة</th><th>الإدارة</th></tr></thead><tbody>
+{% for item in licenses %}
+<tr><td><span class="code-hint">{{item.code_hint}}</span><div class="muted">#{{item.id}}</div></td><td>{{item.duration_days}} يوم</td>
+<td>{{item.used}} / {{item.max_devices}}</td>
+<td>{% if item.disabled %}<span class="state disabled">معطّل</span>{% else %}<span class="state active">فعّال</span>{% endif %}</td>
+<td><div class="inline-actions">
+<form method="post" action="/toggle/{{item.id}}"><input type="hidden" name="csrf" value="{{token}}"><button class="btn small" type="submit">{{'إعادة التفعيل' if item.disabled else 'تعطيل'}}</button></form>
+<form method="post" action="/delete/{{item.id}}" onsubmit="return confirm('تأكيد حذف الكود نهائياً؟')"><input type="hidden" name="csrf" value="{{token}}"><button class="btn small danger" type="submit">حذف</button></form>
+</div>
+<form class="inline-edit" method="post" action="/edit/{{item.id}}"><input type="hidden" name="csrf" value="{{token}}">
+<input name="days" type="number" value="{{item.duration_days}}" min="1" max="3650" aria-label="مدة الكود">
+<input name="devices" type="number" value="{{item.max_devices}}" min="1" max="100" aria-label="عدد الأجهزة">
+<button type="submit" class="btn small">تعديل</button></form></td></tr>
+{% else %}<tr><td colspan="5" style="text-align:center;color:#a7a5c3;padding:28px">ماكو أكواد تطابق البحث حالياً.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<div class="footer">© 2026 HASSANY IPA · Developer: Hussein Al-Hassany · @om_g9</div>
+</main></div></div></body></html>

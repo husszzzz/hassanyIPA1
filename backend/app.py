@@ -6,10 +6,16 @@ import psycopg
 from psycopg.rows import dict_row
 
 app = Flask(__name__)
-app.secret_key = os.environ["SESSION_SECRET"]
+app.secret_key = os.environ.get("SESSION_SECRET") or secrets.token_hex(32)
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SECURE=True, SESSION_COOKIE_SAMESITE="Lax", PERMANENT_SESSION_LIFETIME=timedelta(hours=6))
-DB_URL = os.environ["DATABASE_URL"]
-ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
+DB_URL = os.environ.get("DATABASE_URL", "")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+
+@app.before_request
+def require_service_configuration():
+    if not all(os.environ.get(k) for k in ("DATABASE_URL", "SESSION_SECRET", "ADMIN_PASSWORD")):
+        if request.path != "/health":
+            return jsonify(status="setup_required", message="Database and admin secrets are not configured"), 503
 
 def db():
     return psycopg.connect(DB_URL, row_factory=dict_row)
@@ -73,6 +79,8 @@ def root():
 
 @app.get("/health")
 def health():
+    if not all(os.environ.get(k) for k in ("DATABASE_URL", "SESSION_SECRET", "ADMIN_PASSWORD")):
+        return jsonify(status="setup_required"), 503
     try:
         with db() as con: con.execute("SELECT 1")
         return jsonify(status="ok")

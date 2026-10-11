@@ -1,320 +1,241 @@
 import UIKit
 
-private enum HassanyStyle {
-    static let background = UIColor(red: 0.025, green: 0.026, blue: 0.075, alpha: 1)
-    static let card = UIColor(red: 0.064, green: 0.058, blue: 0.13, alpha: 0.97)
-    static let violet = UIColor(red: 0.63, green: 0.39, blue: 1, alpha: 1)
-    static let cyan = UIColor(red: 0.30, green: 0.74, blue: 1, alpha: 1)
-    static let muted = UIColor(red: 0.71, green: 0.70, blue: 0.82, alpha: 1)
-}
-
 @objc(HassanyBridge)
 public final class HassanyBridge: NSObject {
     @objc(presentOn:)
     public static func present(on presenter: UIViewController) {
         guard presenter.presentedViewController == nil else { return }
-        let welcome = HassanyWelcomeController()
-        welcome.modalPresentationStyle = .overFullScreen
-        presenter.present(welcome, animated: true)
+        let screen = PremiumWelcome()
+        screen.modalPresentationStyle = .overFullScreen
+        presenter.present(screen, animated: false)
     }
 }
 
-// Native UIKit and Swift, no HTML, WebView or remote UI.
-private final class HassanyWelcomeController: UIViewController, UITextFieldDelegate {
-    private let gradient = CAGradientLayer()
-    private let scroll = UIScrollView()
-    private let card = UIView()
-    private let columns = UIStackView()
-    private let hero = UIStackView()
-    private let form = UIStackView()
-    private let badge = UILabel()
-    private let headline = UILabel()
-    private let subtitle = UILabel()
-    private let byline = UILabel()
-    private let formTitle = UILabel()
-    private let formDescription = UILabel()
-    private let status = UILabel()
-    private let credit = UILabel()
+private final class PremiumWelcome: UIViewController, UITextFieldDelegate {
+    private let backdrop = UIImageView()
+    private let panel = UIView()
     private let codeField = UITextField()
-    private let verifyButton = UIButton(type: .system)
-    private let enterButton = UIButton(type: .system)
-    private let developerButton = UIButton(type: .system)
-    private let channelButton = UIButton(type: .system)
-    private let languageButton = UIButton(type: .system)
-    private let logoView = UIImageView()
-    private var landscapeWidth: NSLayoutConstraint?
-    private var isLandscapeLayout = false
-    private var isArabic = true
-    private var verified = false
-    private var maintenanceActive = false
-    private var needsUpdate = false
-
-    private var apiRoot: String {
-        (Bundle.main.object(forInfoDictionaryKey: "HassanyAPIBaseURL") as? String)
-            ?? "https://backend-black-delta-89.vercel.app"
-    }
+    private let info = UILabel()
+    private let blocked = UIView()
+    private let verifyButton = UIButton(type: .custom)
+    private let enterButton = UIButton(type: .custom)
+    private let developerButton = UIButton(type: .custom)
+    private let channelButton = UIButton(type: .custom)
+    private let languageButton = UIButton(type: .custom)
+    private let activity = UIActivityIndicatorView(style: .medium)
+    private let design = CGSize(width: 1672, height: 941)
+    private let api = "https://backend-black-delta-89.vercel.app"
+    private var isActive = false
+    private var available = false
+    private var maintenance = false
+    private var requireUpdate = false
+    private var arabic = true
+    private var keyboardOffset: CGFloat = 0
 
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = HassanyStyle.background
-        gradient.colors = [
-            UIColor(red: 0.04, green: 0.02, blue: 0.10, alpha: 1).cgColor,
-            UIColor(red: 0.17, green: 0.08, blue: 0.32, alpha: 1).cgColor,
-            UIColor(red: 0.035, green: 0.09, blue: 0.19, alpha: 1).cgColor
-        ]
-        gradient.startPoint = CGPoint(x: 0, y: 0)
-        gradient.endPoint = CGPoint(x: 1, y: 1)
-        view.layer.insertSublayer(gradient, at: 0)
-
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.alwaysBounceVertical = true
-        scroll.showsVerticalScrollIndicator = false
-        scroll.keyboardDismissMode = .onDrag
-        view.addSubview(scroll)
-        card.translatesAutoresizingMaskIntoConstraints = false
-        card.backgroundColor = HassanyStyle.card
-        card.layer.cornerRadius = 24
-        card.layer.borderWidth = 1
-        card.layer.borderColor = HassanyStyle.violet.withAlphaComponent(0.32).cgColor
-        card.layer.shadowColor = HassanyStyle.violet.cgColor
-        card.layer.shadowOpacity = 0.2
-        card.layer.shadowRadius = 28
-        card.layer.shadowOffset = CGSize(width: 0, height: 10)
-        scroll.addSubview(card)
-
-        columns.translatesAutoresizingMaskIntoConstraints = false
-        columns.spacing = 23
-        columns.alignment = .center
-        columns.distribution = .fill
-        card.addSubview(columns)
-        [hero, form].forEach {
-            $0.axis = .vertical
-            $0.alignment = .fill
-            $0.spacing = 10
-            columns.addArrangedSubview($0)
+        view.backgroundColor = UIColor(red: 0.04, green: 0.025, blue: 0.10, alpha: 1)
+        panel.clipsToBounds = true
+        view.addSubview(panel)
+        if let file = Bundle.main.path(forResource: "HassanyPremiumBackdrop", ofType: "png") {
+            backdrop.image = UIImage(contentsOfFile: file)
         }
-
-        let fillWidth = card.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -24)
-        fillWidth.priority = .defaultHigh
-        NSLayoutConstraint.activate([
-            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            scroll.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            scroll.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            card.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 9),
-            card.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -9),
-            card.centerXAnchor.constraint(equalTo: scroll.frameLayoutGuide.centerXAnchor),
-            card.widthAnchor.constraint(lessThanOrEqualToConstant: 890),
-            card.widthAnchor.constraint(lessThanOrEqualTo: scroll.frameLayoutGuide.widthAnchor, constant: -24),
-            fillWidth,
-            columns.topAnchor.constraint(equalTo: card.topAnchor, constant: 19),
-            columns.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -19),
-            columns.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 21),
-            columns.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -21)
-        ])
-
-        logoView.contentMode = .scaleAspectFit
-        logoView.image = UIImage(named: "HassanyWelcomeLogo")
-        logoView.heightAnchor.constraint(equalToConstant: 105).isActive = true
-        hero.addArrangedSubview(logoView)
-        setupLabel(badge, size: 10, weight: .bold, color: HassanyStyle.violet)
-        setupLabel(headline, size: 31, weight: .heavy, color: .white)
-        setupLabel(subtitle, size: 15, weight: .medium, color: HassanyStyle.muted)
-        setupLabel(byline, size: 12, weight: .medium, color: HassanyStyle.muted)
-        [badge, headline, subtitle, byline].forEach { hero.addArrangedSubview($0) }
-
-        let bar = UIView()
-        bar.backgroundColor = HassanyStyle.violet.withAlphaComponent(0.6)
-        bar.heightAnchor.constraint(equalToConstant: 2).isActive = true
-        hero.addArrangedSubview(bar)
-        setupLabel(credit, size: 10, weight: .regular, color: HassanyStyle.muted)
-        hero.addArrangedSubview(credit)
-
-        setupLabel(formTitle, size: 19, weight: .bold, color: .white)
-        setupLabel(formDescription, size: 12, weight: .medium, color: HassanyStyle.muted)
-        [formTitle, formDescription].forEach { form.addArrangedSubview($0) }
-        codeField.heightAnchor.constraint(equalToConstant: 46).isActive = true
+        backdrop.contentMode = .scaleToFill
+        panel.addSubview(backdrop)
+        codeField.backgroundColor = UIColor(red: 0.08, green: 0.065, blue: 0.16, alpha: 0.97)
         codeField.textColor = .white
-        codeField.backgroundColor = UIColor.white.withAlphaComponent(0.10)
         codeField.layer.cornerRadius = 12
-        codeField.layer.borderColor = HassanyStyle.violet.withAlphaComponent(0.45).cgColor
         codeField.layer.borderWidth = 1
-        codeField.font = .monospacedSystemFont(ofSize: 14, weight: .semibold)
-        codeField.textAlignment = .center
-        codeField.autocorrectionType = .no
+        codeField.layer.borderColor = UIColor(red: 0.70, green: 0.46, blue: 1.0, alpha: 1).cgColor
         codeField.autocapitalizationType = .allCharacters
+        codeField.autocorrectionType = .no
+        codeField.spellCheckingType = .no
+        codeField.textAlignment = .center
+        codeField.keyboardAppearance = .dark
         codeField.returnKeyType = .done
         codeField.delegate = self
-        form.addArrangedSubview(codeField)
+        panel.addSubview(codeField)
+        blocked.isUserInteractionEnabled = false
+        blocked.backgroundColor = UIColor(red: 0.04, green: 0.04, blue: 0.09, alpha: 0.74)
+        blocked.layer.cornerRadius = 18
+        panel.addSubview(blocked)
 
-        button(verifyButton, highlighted: true, action: #selector(verify))
-        form.addArrangedSubview(verifyButton)
-        setupLabel(status, size: 12, weight: .medium, color: HassanyStyle.muted)
-        form.addArrangedSubview(status)
-        button(enterButton, highlighted: true, action: #selector(enterGame))
-        enterButton.isHidden = true
-        form.addArrangedSubview(enterButton)
-        button(developerButton, highlighted: false, action: #selector(openDeveloper))
-        form.addArrangedSubview(developerButton)
-        button(channelButton, highlighted: false, action: #selector(openChannel))
-        form.addArrangedSubview(channelButton)
-        button(languageButton, highlighted: false, action: #selector(switchLanguage))
-        form.addArrangedSubview(languageButton)
-        applyLanguage()
-        fetchAppStatus()
-    }
+        info.numberOfLines = 2
+        info.adjustsFontSizeToFitWidth = true
+        info.minimumScaleFactor = 0.5
+        info.textAlignment = .center
+        info.backgroundColor = UIColor(red: 0.03, green: 0.025, blue: 0.09, alpha: 0.83)
+        info.textColor = .white
+        info.clipsToBounds = true
+        info.layer.cornerRadius = 9
+        panel.addSubview(info)
 
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        gradient.frame = view.bounds
-        let wide = view.bounds.width > view.bounds.height && view.bounds.width > 620
-        if wide != isLandscapeLayout {
-            isLandscapeLayout = wide
-            landscapeWidth?.isActive = false
-            columns.axis = wide ? .horizontal : .vertical
-            columns.alignment = wide ? .center : .fill
-            if wide {
-                let constraint = hero.widthAnchor.constraint(equalTo: form.widthAnchor, multiplier: 0.93)
-                constraint.isActive = true
-                landscapeWidth = constraint
+        for button in [verifyButton, enterButton, developerButton, channelButton, languageButton] {
+            button.backgroundColor = .clear
+            panel.addSubview(button)
+        }
+        verifyButton.addTarget(self, action: #selector(verify), for: .touchUpInside)
+        enterButton.addTarget(self, action: #selector(enterGame), for: .touchUpInside)
+        developerButton.addTarget(self, action: #selector(openDeveloper), for: .touchUpInside)
+        channelButton.addTarget(self, action: #selector(openChannel), for: .touchUpInside)
+        languageButton.addTarget(self, action: #selector(changeLanguage), for: .touchUpInside)
+        verifyButton.accessibilityLabel = "تحقق من الكود"
+        enterButton.accessibilityLabel = "دخول اللعبة"
+        developerButton.accessibilityLabel = "المطور حسين الحسني"
+        channelButton.accessibilityLabel = "قناة hassanyIPA"
+        languageButton.accessibilityLabel = "اللغة"
+        activity.hidesWhenStopped = true
+        activity.color = .white
+        panel.addSubview(activity)
+        setMessage("جاري فحص حالة النظام...")
+        updateEntry()
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardChanged(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardHide),
+            name: UIResponder.keyboardWillHideNotification, object: nil)
+        checkStatus()
+        if !UIAccessibility.isReduceMotionEnabled {
+            panel.alpha = 0
+            panel.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
+            UIView.animate(withDuration: 0.65, delay: 0, usingSpringWithDamping: 0.88,
+                           initialSpringVelocity: 0.1) {
+                self.panel.alpha = 1
+                self.panel.transform = .identity
             }
         }
     }
 
-    private func setupLabel(_ label: UILabel, size: CGFloat, weight: UIFont.Weight, color: UIColor) {
-        label.font = .systemFont(ofSize: size, weight: weight)
-        label.textColor = color
-        label.numberOfLines = 0
-        label.textAlignment = .center
-    }
-    private func button(_ target: UIButton, highlighted: Bool, action: Selector) {
-        target.backgroundColor = highlighted ? HassanyStyle.violet : UIColor.white.withAlphaComponent(0.085)
-        target.layer.cornerRadius = 12
-        target.layer.borderWidth = highlighted ? 0 : 1
-        target.layer.borderColor = UIColor.white.withAlphaComponent(0.12).cgColor
-        target.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
-        target.setTitleColor(.white, for: .normal)
-        target.heightAnchor.constraint(equalToConstant: 42).isActive = true
-        target.addTarget(self, action: action, for: .touchUpInside)
-    }
-    private func applyLanguage() {
-        badge.text = "✦   H A S S A N Y   •   P R E M I U M"
-        headline.text = "HASSANY IPA"
-        subtitle.text = isArabic ? "تجربة بلياردو بهوية الحسني" : "A refined billiards experience"
-        byline.text = isArabic ? "حسين الحسني  •  @om_g9" : "Hussein Al-Hassany  •  @om_g9"
-        credit.text = "© HASSANY IPA  •  @hassanyIPA"
-        formTitle.text = isArabic ? "تفعيل النسخة" : "Activate your access"
-        formDescription.text = isArabic ? "أدخل الكود للتحقق من السيرفر" : "Enter your code to verify with the server"
-        codeField.attributedPlaceholder = NSAttributedString(
-            string: isArabic ? "كود HASSANY" : "Your HASSANY code",
-            attributes: [.foregroundColor: HassanyStyle.muted]
-        )
-        verifyButton.setTitle(isArabic ? "تحقق من الكود  ◈" : "Verify code  ◈", for: .normal)
-        enterButton.setTitle(isArabic ? "دخول اللعبة  ←" : "Enter game  →", for: .normal)
-        developerButton.setTitle(isArabic ? "المطور  •  حسين الحسني" : "Developer  •  Hussein Al-Hassany", for: .normal)
-        channelButton.setTitle(isArabic ? "القناة الرسمية  •  @hassanyIPA" : "Official channel  •  @hassanyIPA", for: .normal)
-        languageButton.setTitle(isArabic ? "English  /  عربي" : "عربي  /  English", for: .normal)
-        if !verified && !maintenanceActive && !needsUpdate {
-            status.text = isArabic ? "جاهز للتحقق الآمن" : "Ready for secure verification"
+    deinit { NotificationCenter.default.removeObserver(self) }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let safe = view.safeAreaLayoutGuide.layoutFrame
+        let width = min(safe.width, safe.height * design.width / design.height)
+        let height = width * design.height / design.width
+        panel.frame = CGRect(x: safe.midX - width / 2, y: safe.midY - height / 2 - keyboardOffset, width: width, height: height)
+        backdrop.frame = panel.bounds
+        func box(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> CGRect {
+            CGRect(x: x * width / design.width, y: y * height / design.height,
+                   width: w * width / design.width, height: h * height / design.height)
         }
+        codeField.frame = box(850, 393, 555, 90)
+        codeField.font = .monospacedSystemFont(ofSize: max(12, height * 30 / design.height), weight: .semibold)
+        verifyButton.frame = box(751, 502, 683, 94)
+        enterButton.frame = box(751, 604, 683, 89)
+        blocked.frame = enterButton.frame.insetBy(dx: 5, dy: 7)
+        channelButton.frame = box(716, 757, 357, 99)
+        developerButton.frame = box(1102, 757, 367, 99)
+        languageButton.frame = box(1336, 14, 301, 82)
+        info.frame = box(857, 699, 520, 51)
+        info.font = .systemFont(ofSize: max(9, height * 25 / design.height), weight: .semibold)
+        activity.frame = box(1320, 515, 36, 36)
     }
-    @objc private func switchLanguage() { isArabic.toggle(); applyLanguage() }
+
+    private func setMessage(_ text: String, verified: Bool = false) {
+        info.text = text
+        info.textColor = verified ? .systemGreen : .white
+    }
+    private func updateEntry() {
+        let allowed = isActive && available && !maintenance && !requireUpdate
+        blocked.isHidden = allowed
+        enterButton.isEnabled = allowed
+    }
     @objc private func openDeveloper() {
         if let url = URL(string: "https://t.me/om_g9") { UIApplication.shared.open(url) }
     }
     @objc private func openChannel() {
         if let url = URL(string: "https://t.me/hassanyIPA") { UIApplication.shared.open(url) }
     }
+    @objc private func changeLanguage() {
+        arabic.toggle()
+        codeField.placeholder = arabic ? "أدخل كود التفعيل" : "Activation code"
+        setMessage(arabic ? "أدخل كود التفعيل" : "Enter your activation code")
+    }
     @objc private func enterGame() {
-        guard verified && !maintenanceActive && !needsUpdate else { return }
+        guard isActive && available && !maintenance && !requireUpdate else { return }
         dismiss(animated: true)
     }
-    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        textField.resignFirstResponder()
+    func textFieldShouldReturn(_ field: UITextField) -> Bool {
+        field.resignFirstResponder()
         verify()
         return true
     }
-
-    // Server response is authoritative for the activation decision shown by this UI.
+    @objc private func keyboardHide() { keyboardOffset = 0; view.setNeedsLayout() }
+    @objc private func keyboardChanged(_ event: Notification) {
+        guard let rect = event.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+        let inView = view.convert(rect, from: nil)
+        keyboardOffset = min(max(0, view.bounds.maxY - inView.minY) * 0.43, view.bounds.height * 0.25)
+        view.setNeedsLayout()
+    }
+    private func checkStatus() {
+        guard let url = URL(string: api + "/api/status") else { return }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 12
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in
+            let result = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                guard let result = result, (response as? HTTPURLResponse)?.statusCode == 200 else {
+                    self.available = false
+                    self.setMessage("تعذر الاتصال بالنظام")
+                    self.updateEntry()
+                    return
+                }
+                self.available = true
+                self.maintenance = (result["maintenance"] as? Bool) ?? false
+                let force = (result["force_update"] as? Bool) ?? false
+                let latest = (result["latest_version"] as? String) ?? ""
+                self.requireUpdate = force && latest.compare("6.0", options: .numeric) == .orderedDescending
+                if self.maintenance {
+                    self.setMessage(result["maintenance_message"] as? String ?? "وضع الصيانة")
+                } else if self.requireUpdate {
+                    self.setMessage("تحديث إجباري للنسخة")
+                } else {
+                    self.setMessage("جاهز — أدخل كود التفعيل")
+                }
+                self.updateEntry()
+            }
+        }.resume()
+    }
     @objc private func verify() {
         codeField.resignFirstResponder()
-        verified = false
-        enterButton.isHidden = true
-        guard !maintenanceActive && !needsUpdate else { return }
+        isActive = false
+        updateEntry()
+        guard available && !maintenance && !requireUpdate else { setMessage("الخدمة غير متاحة"); return }
         let code = (codeField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard code.count >= 10 else {
-            status.text = isArabic ? "رجاءً أدخل كوداً صالحاً" : "Please enter a valid code"
+        guard (10...100).contains(code.count), let url = URL(string: api + "/api/activate") else {
+            setMessage("أدخل كود صحيح")
             return
         }
-        guard apiRoot.hasPrefix("https://"), let url = URL(string: apiRoot + "/api/activate") else {
-            status.text = "Server configuration error"
-            return
-        }
-        let key = "HassanyClientDeviceID"
-        let defaults = UserDefaults.standard
-        var deviceID = defaults.string(forKey: key)
-        if deviceID == nil { deviceID = UUID().uuidString; defaults.set(deviceID, forKey: key) }
+        let storage = UserDefaults.standard
+        var device = storage.string(forKey: "HassanyDevice")
+        if device == nil { device = UUID().uuidString; storage.set(device, forKey: "HassanyDevice") }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: [
-            "code": code, "device_id": deviceID ?? ""
-        ])
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["code": code, "device_id": device ?? ""])
         verifyButton.isEnabled = false
-        status.textColor = HassanyStyle.muted
-        status.text = isArabic ? "جاري التحقق..." : "Checking code..."
-        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
-            let answer = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        activity.startAnimating()
+        setMessage("جاري التحقق...")
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            let result = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.verifyButton.isEnabled = true
-                if answer["ok"] as? Bool == true && !self.maintenanceActive && !self.needsUpdate {
-                    self.verified = true
-                    self.enterButton.isHidden = false
-                    self.status.textColor = .systemGreen
-                    self.status.text = self.isArabic ? "الكود صحيح ✓ تگدر تدخل هسه" : "Valid code ✓ You can enter"
+                self.activity.stopAnimating()
+                if (response as? HTTPURLResponse)?.statusCode == 200 && result["ok"] as? Bool == true
+                   && self.available && !self.maintenance && !self.requireUpdate {
+                    self.isActive = true
+                    self.setMessage("✓ الكود صحيح — اضغط دخول اللعبة", verified: true)
                 } else {
-                    self.verified = false
-                    self.enterButton.isHidden = true
-                    self.status.textColor = .systemOrange
-                    let msg = answer["error"] as? String
-                    if msg == "maintenance" {
-                        self.maintenanceActive = true
-                        self.status.text = self.isArabic ? "الخدمة تحت الصيانة" : "Service under maintenance"
-                    } else {
-                        self.status.text = error == nil
-                            ? (self.isArabic ? "الكود غير صالح أو منتهي" : "Invalid or expired code")
-                            : (self.isArabic ? "ما گدرنا نتصل بالسيرفر" : "Couldn't reach the server")
-                    }
+                    self.isActive = false
+                    self.setMessage(error != nil ? "تعذّر الاتصال" : "الكود غير صالح أو منتهي")
                 }
-            }
-        }.resume()
-    }
-
-    private func fetchAppStatus() {
-        guard let url = URL(string: apiRoot + "/api/status") else { return }
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-            guard let data = data,
-                  let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.maintenanceActive = (obj["maintenance"] as? Bool) ?? false
-                let force = (obj["force_update"] as? Bool) ?? false
-                let latest = (obj["latest_version"] as? String) ?? ""
-                self.needsUpdate = force && latest.compare("4.0", options: .numeric) == .orderedDescending
-                if self.maintenanceActive || self.needsUpdate {
-                    self.verified = false
-                    self.enterButton.isHidden = true
-                    self.verifyButton.isEnabled = false
-                    self.status.textColor = .systemOrange
-                    self.status.text = self.maintenanceActive
-                        ? ((obj["maintenance_message"] as? String) ?? "تحت الصيانة")
-                        : (self.isArabic ? "يتوفر تحديث مطلوب" : "Required update available")
-                }
+                self.updateEntry()
             }
         }.resume()
     }

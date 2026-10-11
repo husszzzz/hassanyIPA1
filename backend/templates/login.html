@@ -1,0 +1,9 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>HASSANY IPA — تسجيل الدخول</title><link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}"></head>
+<body><div class="shell"><header class="topbar"><div class="brand"><div class="brand-mark">H</div><div><div class="brand-name">HASSANY IPA</div><div class="brand-detail">حسين الحسني · @om_g9</div></div></div><span class="pill">لوحة الإدارة</span></header>
+<main class="login-layout"><section class="card login-box"><div class="eyebrow">SECURE ADMIN ACCESS</div><h1>مرحباً بعودتك</h1><p>أدخل كلمة مرور الإدارة للمتابعة إلى لوحة إدارة الأكواد والنظام.</p>
+<form method="post" action="/login"><input type="hidden" name="csrf" value="{{token}}">
+<div class="field"><label for="password">كلمة مرور الإدارة</label><input id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••••••" autofocus></div>
+<button class="btn primary" type="submit">الدخول إلى لوحة التحكم  ←</button></form>
+{% if error %}<p role="alert" style="color:#f5a6c5;margin-top:16px">{{error}}</p>{% endif %}
+<p style="font-size:11px;margin-top:20px">خاص بالمطور — لا تشارك بيانات الدخول.</p>
+</section></main></div></body></html>

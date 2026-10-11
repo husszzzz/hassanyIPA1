@@ -17,7 +17,8 @@ jobs:
           set -euo pipefail
           SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
           mkdir -p dist/HassanyGate.framework
-          xcrun clang -target arm64-apple-ios16.0 -isysroot "$SDK" -fobjc-arc -dynamiclib -framework UIKit -framework QuartzCore -framework Foundation -Wl,-install_name,@rpath/HassanyGate.framework/HassanyGate -o dist/HassanyGate.framework/HassanyGate integration/HassanyWelcome.m
+          xcrun clang -target arm64-apple-ios16.0 -isysroot "$SDK" -fobjc-arc -c integration/HassanySwiftBootstrap.m -o "$RUNNER_TEMP/HassanySwiftBootstrap.o"
+          xcrun swiftc -target arm64-apple-ios16.0 -sdk "$SDK" -emit-library -module-name HassanyGate -framework UIKit -framework Foundation -framework QuartzCore -Xlinker -install_name -Xlinker @rpath/HassanyGate.framework/HassanyGate integration/HassanyWelcome.swift "$RUNNER_TEMP/HassanySwiftBootstrap.o" -o dist/HassanyGate.framework/HassanyGate
           python3 -c 'import plistlib; plistlib.dump(dict(CFBundleIdentifier="com.hassany.gate", CFBundleExecutable="HassanyGate", CFBundlePackageType="FMWK", CFBundleInfoDictionaryVersion="6.0"), open("dist/HassanyGate.framework/Info.plist", "wb"))'
           xcrun file dist/HassanyGate.framework/HassanyGate
       - uses: actions/upload-artifact@v4

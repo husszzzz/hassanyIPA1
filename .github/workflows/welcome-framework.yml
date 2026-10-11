@@ -1,0 +1,29 @@
+name: Build native Hassany welcome framework
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'integration/**'
+      - '.github/workflows/welcome-framework.yml'
+permissions:
+  contents: read
+jobs:
+  ios-framework:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile arm64 iOS framework
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          mkdir -p dist/HassanyGate.framework
+          xcrun clang -target arm64-apple-ios16.0 -isysroot "$SDK" -fobjc-arc -dynamiclib -framework UIKit -framework Foundation -Wl,-install_name,@rpath/HassanyGate.framework/HassanyGate -o dist/HassanyGate.framework/HassanyGate integration/HassanyWelcome.m
+          /usr/libexec/PlistBuddy -c 'Clear dict' dist/HassanyGate.framework/Info.plist
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.hassany.gate' dist/HassanyGate.framework/Info.plist
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string HassanyGate' dist/HassanyGate.framework/Info.plist
+          /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string FMWK' dist/HassanyGate.framework/Info.plist
+          xcrun file dist/HassanyGate.framework/HassanyGate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HassanyGate-framework-unsigned
+          path: dist/HassanyGate.framework

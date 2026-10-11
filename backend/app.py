@@ -120,6 +120,10 @@ def admin():
         licenses=con.execute("""SELECT l.id,l.code_hint,l.duration_days,l.max_devices,l.disabled,l.created_at,
              (SELECT count(*) FROM activations a WHERE a.license_id=l.id) AS used
              FROM licenses l ORDER BY l.id DESC LIMIT 200""").fetchall()
+    with db() as con:
+        settings=con.execute("SELECT * FROM app_settings WHERE id=1").fetchone()
+    needle=(request.args.get("q") or "").strip().upper()
+    if needle: licenses=[x for x in licenses if needle in x["code_hint"].upper()]
     code=session.pop("new_code",None)
     return page("""<header><h1>✦ HASSANY IPA</h1><form action="/logout" method="post">
     <input type="hidden" name="csrf" value="{{token}}"><button class="danger logout">خروج</button></form></header>
@@ -131,15 +135,32 @@ def admin():
     <label>الصلاحية بالأيام <input name="days" type="number" min="1" max="3650" value="30" required></label>
     <label>عدد الأجهزة <input name="devices" type="number" min="1" max="100" value="1" required></label>
     <button>إنشاء كود جديد</button></form></section>
+    <section class="box"><h2>التحكم بالنظام</h2><form method="post" action="/settings">
+    <input type="hidden" name="csrf" value="{{token}}">
+    <label><input type="checkbox" name="maintenance" value="yes" style="width:auto" {% if settings.maintenance %}checked{% endif %}> وضع الصيانة</label>
+    <label>رسالة الصيانة <input name="maintenance_message" maxlength="250" value="{{settings.maintenance_message}}"></label>
+    <label>رقم آخر إصدار <input name="latest_version" maxlength="32" value="{{settings.latest_version}}"></label>
+    <label>رابط التحديث HTTPS <input name="update_url" maxlength="350" value="{{settings.update_url}}"></label>
+    <label><input type="checkbox" name="force_update" value="yes" style="width:auto" {% if settings.force_update %}checked{% endif %}> طلب التحديث الإجباري</label>
+    <button>حفظ إعدادات النظام</button></form></section>
+    <section class="box"><h2>البحث عن الأكواد</h2><p>يمكن البحث فقط بآخر ستة رموز، لأن الأكواد كاملة لا تُخزّن كنص واضح.</p>
+    <form method="get" action="/admin"><input name="q" maxlength="6" placeholder="آخر 6 رموز" value="{{search}}"><button>بحث</button></form></section>
     <section class="box"><h2>الأكواد</h2><div class="scroll"><table>
     <tr><th>آخر الرموز</th><th>الأيام</th><th>الأجهزة</th><th>الحالة</th><th>إجراء</th></tr>
     {% for item in licenses %}
     <tr><td dir="ltr">{{item.code_hint}}</td><td>{{item.duration_days}}</td>
     <td>{{item.used}} / {{item.max_devices}}</td>
     <td>{{'ملغى' if item.disabled else 'فعّال'}}</td><td>
-    {% if not item.disabled %}<form method="post" action="/disable/{{item.id}}">
-    <input type="hidden" name="csrf" value="{{token}}"><button class="danger">إلغاء</button></form>{% endif %}
-    </td></tr>{% endfor %}</table></div></section>""", token=csrf(),licenses=licenses,code=code)
+    <form method="post" action="/toggle/{{item.id}}">
+    <input type="hidden" name="csrf" value="{{token}}"><button>{{'إعادة تفعيل' if item.disabled else 'تعطيل'}}</button></form>
+    <form method="post" action="/delete/{{item.id}}" onsubmit="return confirm('حذف الكود نهائياً؟')">
+    <input type="hidden" name="csrf" value="{{token}}"><button class="danger">حذف</button></form>
+    <form method="post" action="/edit/{{item.id}}">
+    <input type="hidden" name="csrf" value="{{token}}">
+    <input style="max-width:70px" name="days" type="number" min="1" max="3650" value="{{item.duration_days}}">
+    <input style="max-width:70px" name="devices" type="number" min="1" max="100" value="{{item.max_devices}}">
+    <button>تعديل</button></form>
+    </td></tr>{% endfor %}</table></div></section>""", token=csrf(),licenses=licenses,code=code,settings=settings,search=(request.args.get("q") or "")[:6])
 
 @app.post("/create")
 @admin_only
@@ -165,6 +186,53 @@ def disable(license_id):
         con.execute("UPDATE licenses SET disabled=true WHERE id=%s",(license_id,))
     return redirect("/admin")
 
+@app.post("/settings")
+@admin_only
+def save_settings():
+    check_csrf()
+    maintenance = request.form.get("maintenance") == "yes"
+    force_update = request.form.get("force_update") == "yes"
+    message = request.form.get("maintenance_message","").strip()[:250]
+    version = request.form.get("latest_version","").strip()[:32]
+    url = request.form.get("update_url","").strip()[:350]
+    if url and not url.startswith("https://"): abort(400)
+    if not version: abort(400)
+    with db() as con:
+        con.execute("UPDATE app_settings SET maintenance=%s,maintenance_message=%s,latest_version=%s,update_url=%s,force_update=%s,updated_at=now() WHERE id=1",(maintenance,message,version,url,force_update))
+    return redirect("/admin")
+
+@app.post("/toggle/<int:license_id>")
+@admin_only
+def toggle_license(license_id):
+    check_csrf()
+    with db() as con: con.execute("UPDATE licenses SET disabled=NOT disabled WHERE id=%s",(license_id,))
+    return redirect("/admin")
+
+@app.post("/delete/<int:license_id>")
+@admin_only
+def delete_license(license_id):
+    check_csrf()
+    with db() as con: con.execute("DELETE FROM licenses WHERE id=%s",(license_id,))
+    return redirect("/admin")
+
+@app.post("/edit/<int:license_id>")
+@admin_only
+def edit_license(license_id):
+    check_csrf()
+    try:
+        days=int(request.form["days"]); devices=int(request.form["devices"])
+        if not (1<=days<=3650 and 1<=devices<=100): abort(400)
+    except (ValueError,KeyError): abort(400)
+    with db() as con:
+        con.execute("UPDATE licenses SET duration_days=%s,max_devices=%s WHERE id=%s",(days,devices,license_id))
+    return redirect("/admin")
+
+@app.get("/api/status")
+def api_status():
+    with db() as con:
+        settings=con.execute("SELECT maintenance,maintenance_message,latest_version,update_url,force_update FROM app_settings WHERE id=1").fetchone()
+    return jsonify(settings)
+
 @app.post("/api/activate")
 def activate():
     payload=request.get_json(silent=True) or {}
@@ -172,6 +240,9 @@ def activate():
     if not isinstance(code,str) or not isinstance(device,str) or not (10<=len(code)<=100 and 8<=len(device)<=128):
         return jsonify(ok=False,error="invalid_request"),400
     with db() as con:
+        settings=con.execute("SELECT maintenance,maintenance_message FROM app_settings WHERE id=1").fetchone()
+        if settings and settings["maintenance"]:
+            return jsonify(ok=False,error="maintenance",message=settings["maintenance_message"]),503
         row=con.execute("SELECT * FROM licenses WHERE code_hash=%s FOR UPDATE",(hash_value(code),)).fetchone()
         if not row or row["disabled"]:
             return jsonify(ok=False,error="invalid_code"),403
